@@ -3,6 +3,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPaperPlane, faRobot, faUser, faSpinner } from '@fortawesome/free-solid-svg-icons'
 import './App.css'
+import MiniMap from './components/MiniMap'
+
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
@@ -61,7 +63,7 @@ function App() {
   }, [messages])
 
   useEffect(() => {
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
       systemInstruction: SYSTEM_PROMPT
     })
@@ -83,13 +85,13 @@ function App() {
       const result = await chatRef.current.sendMessage(userMessage)
       const response = await result.response
       const text = response.text()
-      
+
       setMessages(prev => [...prev, { role: 'assistant', content: text }])
     } catch (error) {
       console.error('Error:', error)
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Beklager, det oppstod en feil. Vennligst prøv igjen.' 
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Beklager, det oppstod en feil. Vennligst prøv igjen.'
       }])
     } finally {
       setIsLoading(false)
@@ -106,70 +108,97 @@ function App() {
   }
 
   return (
-    <div className="chat-container">
-      <header className="chat-header">
-        <FontAwesomeIcon icon={faRobot} className="header-icon" />
-        <div className="header-text">
-          <h1>GeoMCP Assistent</h1>
-          <p>Analyse av geo- og plansaksdata</p>
+    <div className="page">
+      {/* LEFT SIDEBAR */}
+      <aside className="sidebar left">
+        <div className="brand">
+          <h2>Norkart</h2>
+          <span>GIS-eksperten</span>
         </div>
-      </header>
 
-      <div className="messages-container">
-        {messages.length === 0 && (
-          <div className="welcome-message">
-            <FontAwesomeIcon icon={faRobot} className="welcome-icon" />
-            <h2>Velkommen til GeoMCP Assistent</h2>
-            <p>
-              Jeg er en spesialisert KI-agent for analyse av norske geo- og plansaksdata.
-              Still meg spørsmål om byggesaker, arealbruk, reguleringsplaner eller kartdata.
-            </p>
-            <div className="disclaimer">
-              <strong>Merk:</strong> Jeg er et analyse- og støtteverktøy. 
-              Sluttvurdering og beslutning tas alltid av menneskelig saksbehandler.
+        <section>
+          <h4>MCP Server Config</h4>
+          <p>Server URL:</p>
+          <code>http://localhost:5173/geomcp</code>
+        </section>
+
+        <section>
+          <h4>System status</h4>
+          <p className="status ok">● MCP server connected</p>
+          <p>Messages: 4</p>
+          <p>Tokens left: 1933</p>
+        </section>
+
+        <section>
+          <h4>Files</h4>
+          <ul className="file-list">
+            <li>Planbeskrivelse.pdf</li>
+            <li>Arealfordeling.csv</li>
+            <li>Naturtypekart.geojson</li>
+          </ul>
+        </section>
+
+        <section>
+          <h4>Quick actions</h4>
+          <button>Reset chat</button>
+        </section>
+      </aside>
+
+      {/* CENTER CHAT */}
+      <main className="chat-area">
+        <div className="messages-container">
+          {messages.length === 0 && (
+            <div className="welcome-message">
+              <p>Velkommen til GIS-eksperten.</p>
             </div>
+          )}
+
+          {messages.map((msg, i) => (
+            <div key={i} className={`message ${msg.role}`}>
+              {msg.content}
+            </div>
+          ))}
+
+          {isLoading && <div className="message assistant">Tenker…</div>}
+        </div>
+
+        <form onSubmit={handleSubmit} className="chat-input">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your question here…"
+          />
+          <button type="submit">➤</button>
+        </form>
+      </main>
+
+      {/* RIGHT SIDEBAR */}
+      <aside className="sidebar right">
+        <section className="map-preview">
+          <div className="mini-map">
+            <MiniMap /></div>
+          <div className="map-actions">
+            <button className="btn primary">View full map</button>
+            <button className="btn primary">Clear layers</button>
+            <button className="btn primary">Reset view</button>
           </div>
-        )}
 
-        {messages.map((message, index) => (
-          <div key={index} className={`message ${message.role}`}>
-            <div className="message-icon">
-              <FontAwesomeIcon icon={message.role === 'user' ? faUser : faRobot} />
-            </div>
-            <div className="message-content">
-              {formatMessage(message.content)}
-            </div>
-          </div>
-        ))}
+        </section>
 
-        {isLoading && (
-          <div className="message assistant">
-            <div className="message-icon">
-              <FontAwesomeIcon icon={faRobot} />
-            </div>
-            <div className="message-content loading">
-              <FontAwesomeIcon icon={faSpinner} spin /> Analyserer...
-            </div>
-          </div>
-        )}
+        <section>
+          <h4>Sidebar</h4>
+          <p>Context / info panel</p>
+        </section>
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      <form onSubmit={handleSubmit} className="input-form">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Skriv din henvendelse her..."
-          disabled={isLoading}
-        />
-        <button type="submit" disabled={isLoading || !input.trim()}>
-          <FontAwesomeIcon icon={isLoading ? faSpinner : faPaperPlane} spin={isLoading} />
-        </button>
-      </form>
+        <section>
+          <h4>Add / remove files</h4>
+          <button>Add file</button>
+        </section>
+      </aside>
     </div>
-  )
+  );
 }
+
 
 export default App
