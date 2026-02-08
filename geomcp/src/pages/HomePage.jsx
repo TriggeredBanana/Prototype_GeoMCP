@@ -47,7 +47,8 @@ Rolleavgrensning:
 Mål:
 Å levere 100 % korrekt, etterprøvbar og konsis informasjon basert utelukkende på tilgjengelige GeoMCP-data, slik at en kundebehandler kan fatte en informert beslutning.`
 
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null
+
 
 function HomePage() {
     const [messages, setMessages] = useState([])
@@ -59,31 +60,16 @@ function HomePage() {
     const chatRef = useRef(null)
     const navigate = useNavigate()
 
-    const testGemini = async () => {
-        setApiStatus('checking')
-        try {
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-2.5-flash',
-                systemInstruction: SYSTEM_PROMPT,
-            })
-
-            const res = await model.generateContent('ping')
-            const text = res.response.text()
-
-            if (text && text.length > 0) setApiStatus('connected')
-            else setApiStatus('disconnected')
-        } catch (e) {
-            console.error('Gemini test failed:', e)
-            setApiStatus('disconnected')
-        }
-    }
-
-
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
     useEffect(() => {
+        if (!genAI) {
+            setApiStatus('disconnected')
+            return
+        }
+
         const model = genAI.getGenerativeModel({
             model: 'gemini-2.5-flash',
             systemInstruction: SYSTEM_PROMPT,
@@ -91,35 +77,67 @@ function HomePage() {
         chatRef.current = model.startChat({ history: [] })
     }, [])
 
-    useEffect(() => {
-        testGemini()
-    }, [])
-
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         if (!input.trim() || isLoading) return
 
+        if (!chatRef.current) {
+            setApiStatus('disconnected')
+            setMessages(prev => [...prev, { role: 'assistant', content: 'API er ikke initialisert.' }])
+            return
+        }
+
         const userMessage = input.trim()
         setInput('')
         setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
         setIsLoading(true)
+        setApiStatus('checking')
 
         try {
             const result = await chatRef.current.sendMessage(userMessage)
             const response = await result.response
             const text = response.text()
+
+            setApiStatus('connected')
             setMessages((prev) => [...prev, { role: 'assistant', content: text }])
         } catch (error) {
             console.error('Error:', error)
-            setMessages((prev) => [
-                ...prev,
-                { role: 'assistant', content: 'Beklager, det oppstod en feil. Vennligst prøv igjen.' },
-            ])
+
+            const message = String(error?.message || error)
+
+            // Litt mer presis feilhåndtering
+            if (message.includes('[429') || message.includes('429') || message.toLowerCase().includes('quota')) {
+                setApiStatus('disconnected')
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: 'assistant',
+                        content:
+                            'Gemini-kvoten er brukt opp akkurat nå (429). Vent litt og prøv igjen, eller bruk en annen nøkkel/plan.',
+                    },
+                ])
+            } else if (message.toLowerCase().includes('api key') || message.toLowerCase().includes('invalid')) {
+                setApiStatus('disconnected')
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: 'assistant',
+                        content: 'API-nøkkelen ser ut til å være ugyldig. Sjekk .env og restart dev-serveren.',
+                    },
+                ])
+            } else {
+                setApiStatus('disconnected')
+                setMessages((prev) => [
+                    ...prev,
+                    { role: 'assistant', content: 'Beklager, det oppstod en feil. Vennligst prøv igjen.' },
+                ])
+            }
         } finally {
             setIsLoading(false)
         }
     }
+
 
     return (
         <div className="page">
@@ -215,9 +233,15 @@ function HomePage() {
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Hva lurer du på?"
                     />
-                    <button type="submit" className="chat-icon-btn" title="Send message" disabled={apiStatus}>
+                    <button
+                        type="submit"
+                        className="chat-icon-btn"
+                        title="Send message"
+                        disabled={isLoading || apiStatus === 'checking' || apiStatus === 'disconnected'}
+                    >
                         ➤
                     </button>
+
 
                 </form>
             </main>
@@ -243,20 +267,15 @@ function HomePage() {
                 </section>
 
                 <div className="sidebar-footer">
-                    <a href="https://www.uia.no" target="_blank" rel="noreferrer">
-                        <img
-                            src={uiaLogo}
-                            alt="Universitetet i Agder"
-                            className="sidebar-footer-logo"
-                        />
-                    </a>
-                    <a href="https://www.norkart.no" target="_blank" rel="noreferrer">
-                        <img
-                            src={norkartLogo}
-                            alt="Norkart"
-                            className="sidebar-footer-logo"
-                        />
-                    </a>
+                    <div className="sidebar-footer-logos">
+                        <a href="https://www.uia.no" target="_blank" rel="noreferrer">
+                            <img src={uiaLogo} alt="Universitetet i Agder" className="sidebar-footer-logo" />
+                        </a>
+
+                        <a href="https://www.norkart.no" target="_blank" rel="noreferrer">
+                            <img src={norkartLogo} alt="Norkart" className="sidebar-footer-logo" />
+                        </a>
+                    </div>
 
                     <p className="sidebar-footer-text">
                         Prototype utviklet av Gruppe 8 (UiA)<br />
@@ -264,6 +283,7 @@ function HomePage() {
                         Konseptuell demonstrator.
                     </p>
                 </div>
+
             </aside>
         </div>
     )
