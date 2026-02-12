@@ -75,6 +75,7 @@ function HomePage() {
             systemInstruction: SYSTEM_PROMPT,
         })
         chatRef.current = model.startChat({ history: [] })
+        setApiStatus('connected')
     }, [])
 
 
@@ -169,7 +170,7 @@ function HomePage() {
                 </section>
 
                 <section className='quick-actions'>
-                    <p className="sidebar-footer-text">Quick actions</p>
+                    <p className="sidebar-footer-text"></p>
 
                     <button
                         type="button"
@@ -237,7 +238,7 @@ function HomePage() {
                         type="submit"
                         className="chat-icon-btn"
                         title="Send message"
-                        disabled={isLoading || apiStatus === 'checking' || apiStatus === 'disconnected'}
+                        disabled={isLoading || apiStatus === 'disconnected'}
                     >
                         ➤
                     </button>
