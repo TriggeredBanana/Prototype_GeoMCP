@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import MiniMap from '../components/MiniMap'
 import norkartLogo from '../assets/01 Logo with spacing-Cwl_Y2_p.png'
 import uiaLogo from '../assets/uia-horizontal-with-name-positive.png'
+import geoMCPLogo from '../assets/ee2c6d45-cf46-46a9-9492-1846d775b23f.png'
 import '../App.css'
 import { useGeoJson } from '../state/GeoJsonContext'
 
